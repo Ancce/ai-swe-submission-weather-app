@@ -1,4 +1,5 @@
 # Weather App Web
+Presentazione progetto: https://docs.google.com/document/d/1UuMSRvAnq-7VUQywBhSNrNBUvwCkG4oxj4WV_OcUsAU/edit?usp=sharing 
 
 ## Panoramica del progetto
 
