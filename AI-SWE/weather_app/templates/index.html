@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>☀️ SkyCast - Il meteo</title>
+    <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/npm/@tabler/icons@2.47.0/icons/sun.svg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid bg-gradient min-vh-100 d-flex align-items-center justify-content-center">
+        <div class="card shadow-lg" style="max-width: 800px; width: 100%;">
+            <div class="card-body p-4">
+                <h1 class="card-title text-center mb-4">☀️ SkyCast</h1>
+                <p class="text-center text-muted mb-4">
+                    {% if selected_city %}
+                        Meteo per: {{ selected_city }}
+                    {% else %}
+                        Inserisci una città per vedere il meteo aggiornato
+                    {% endif %}
+                </p>
+
+                <form method="POST" class="mb-3" style="max-width: 350px; margin: 0 auto;">
+                    <input type="hidden" name="lat" id="hidden-lat">
+                    <input type="hidden" name="lon" id="hidden-lon">
+                    <input type="hidden" name="selected_city" id="hidden-city">
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="city" id="city-input" class="form-control" placeholder="Es. Roma" required list="city-suggestions" autocomplete="off" style="font-size: 1rem;">
+                        <datalist id="city-suggestions"></datalist>
+                        <button type="submit" name="search" class="btn btn-primary">🔍 Cerca</button>
+                    </div>
+                </form>
+
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+
+                {% if city_list %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Seleziona la città:</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for city in city_list %}
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="lat" value="{{ city.lat }}">
+                            <input type="hidden" name="lon" value="{{ city.lon }}">
+                            <input type="hidden" name="selected_city" value="{{ city.display_name }}">
+                            <button type="submit" name="select" class="btn btn-outline-secondary mb-2 me-2">
+                                {{ city.display_name }} ({{ city.get('state', 'N/A') }}, {{ city.get('country', 'N/A') }})
+                            </button>
+                        </form>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Funzionalità: Meteo per più città -->
+                <form method="POST" class="mb-3" style="max-width: 350px; margin: 0 auto;">
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="multi_city" class="form-control" placeholder="Es. Roma; Milano; Napoli" required style="font-size: 1rem;">
+                        <button type="submit" class="btn btn-success">Mostra meteo città multiple</button>
+                    </div>
+                    <small class="text-muted">Inserisci più città separate da punto e virgola (;)</small>
+                </form>
+                {% if multi_weather %}
+                <div class="mb-4">
+                    <div class="d-flex flex-row flex-wrap gap-3 justify-content-center">
+                        {% for entry in multi_weather %}
+                        <div class="text-center bg-light rounded shadow-sm px-3 py-2" style="min-width: 160px;">
+                            <div class="fw-bold text-primary mb-1">{{ entry.city }}</div>
+                            <div style="font-size:2rem;">{{ weather_codes[entry.weather.weathercode][1] }}</div>
+                            <div class="mb-1">{{ weather_codes[entry.weather.weathercode][0] }}</div>
+                            <div>
+                                <span class="badge bg-danger me-1">▲ {{ entry.weather.daily.max_temps[0] }}°C</span>
+                                <span class="badge bg-info text-dark">▼ {{ entry.weather.daily.min_temps[0] }}°C</span>
+                            </div>
+                            <div class="mt-2 small text-muted">{{ entry.weather.time }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                <!-- Fine funzionalità -->
+
+                {% if weather_data %}
+                <div class="row justify-content-end">
+                    <div class="col-12 col-md-6">
+                        <div class="card mb-3 float-md-end">
+                            <div class="card-body text-center">
+                                <div class="display-1 mb-2">{{ weather_codes[weather_data.weathercode][1] }}</div>
+                                <h5>{{ weather_codes[weather_data.weathercode][0] }}</h5>
+                                <p class="mb-1"><strong>Città:</strong> {{ selected_city }}</p>
+                                <p class="mb-1"><strong>Temperatura:</strong> {{ weather_data.temperature }}°C</p>
+                                <p class="mb-1"><strong>Vento:</strong> {{ weather_data.windspeed }} km/h</p>
+                                <p class="mb-1"><strong>Umidità:</strong> {{ weather_data.humidity }}%</p>
+                                <p class="text-muted">Ultimo aggiornamento: {{ weather_data.time }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>📅 Previsioni 7 giorni</h5>
+                            </div>
+                            <div class="card-body px-2 py-3">
+                                <div class="d-flex flex-row flex-nowrap overflow-auto gap-3 justify-content-center">
+                                    {% for day in weather_data.daily.dates %}
+                                    {% set index = loop.index0 %}
+                                    <div class="text-center bg-light rounded shadow-sm px-3 py-2" style="min-width: 120px;">
+                                        <div class="fw-bold text-primary mb-1" style="font-size:1.1rem;">{{ day.split('-')[2] }}/{{ day.split('-')[1] }}</div>
+                                        <div style="font-size:2rem;">{{ weather_codes[weather_data.daily.codes[index]][1] }}</div>
+                                        <div class="mb-1">{{ weather_codes[weather_data.daily.codes[index]][0] }}</div>
+                                        <div>
+                                            <span class="badge bg-danger me-1">▲ {{ weather_data.daily.max_temps[index] }}°C</span>
+                                            <span class="badge bg-info text-dark">▼ {{ weather_data.daily.min_temps[index] }}°C</span>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const input = document.getElementById('city-input');
+        const datalist = document.getElementById('city-suggestions');
+        const form = document.querySelector('form');
+        let timeout;
+        let suggestionsData = []; // Memorizza i dati completi
+
+        input.addEventListener('input', function() {
+            clearTimeout(timeout);
+            const query = this.value.trim();
+            if (query.length >= 2) {
+                timeout = setTimeout(() => {
+                    fetch(`/autocomplete?q=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            suggestionsData = data.suggestions; // Salva i dati
+                            datalist.innerHTML = '';
+                            data.suggestions.forEach(suggestion => {
+                                const option = document.createElement('option');
+                                option.value = suggestion.value;
+                                datalist.appendChild(option);
+                            });
+                        })
+                        .catch(error => console.error('Errore autocompletamento:', error));
+                }, 300); // Debounce 300ms
+            } else {
+                datalist.innerHTML = '';
+                suggestionsData = [];
+            }
+        });
+
+        // Quando l'utente seleziona dal datalist, trova i dati e submit automaticamente
+        input.addEventListener('change', function() {
+            const selectedValue = this.value.trim();
+            if (selectedValue) {
+                const selectedSuggestion = suggestionsData.find(s => s.value === selectedValue);
+                if (selectedSuggestion) {
+                    // Imposta i campi nascosti
+                    document.getElementById('hidden-lat').value = selectedSuggestion.lat;
+                    document.getElementById('hidden-lon').value = selectedSuggestion.lon;
+                    document.getElementById('hidden-city').value = selectedSuggestion.label;
+                    // Crea un pulsante nascosto per 'select' e submit
+                    const selectButton = document.createElement('button');
+                    selectButton.type = 'submit';
+                    selectButton.name = 'select';
+                    selectButton.style.display = 'none';
+                    form.appendChild(selectButton);
+                    selectButton.click();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
